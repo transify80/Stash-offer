@@ -1,4 +1,4 @@
-const CACHE="offer-stash-v4";
+const CACHE="offer-stash-v4-1";
 const ASSETS=["./","./index.html","./styles.css","./app.js","./manifest.webmanifest","./icon.svg"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));self.skipWaiting()});
 self.addEventListener("activate",e=>e.waitUntil(self.clients.claim()));
