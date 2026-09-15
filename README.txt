@@ -1,44 +1,27 @@
-OFFER STASH V3 — NO APK + ANDROID SHARE TARGET
+OFFER STASH V4
 
-This version adds Android's Web Share Target.
+V4 is the working no-APK phone version.
 
-WHAT IT DOES
-- No APK.
-- No login.
-- No cloud database.
-- Local IndexedDB storage.
-- Local images.
-- Backup/restore via .osb.
-- Android Share Target: share text or an image from another app to Offer Stash.
-- The shared content opens directly in the Add Offer screen.
+NEW
+- Cleaner mobile UI.
+- Share -> Offer Stash opens Add Offer automatically.
+- Shared title/text/URL are analysed locally.
+- Smart fill suggests source, promo code, expiry date and category from shared text.
+- Shared images remain attached locally.
+- Better expiry display ("Today", "Tomorrow", "in 12 days", "Expired").
+- Tracker sorted by next date.
+- Local backup/restore remains merge-safe.
+- No login, no cloud database, no user data server.
 
-IMPORTANT LIMITATION
-For Android to expose "Offer Stash" in the system Share sheet, the PWA needs to be installed from a secure origin (normally HTTPS) and launched from its installed/home-screen version. Opening index.html directly as file:// or content:// is not sufficient for the full Share Target behavior.
+PRIVACY
+All saved offer/tracker records and attached images stay in the browser storage on the phone. GitHub Pages only serves the application files.
 
-PHONE SETUP
-1. Put this folder on an HTTPS web host.
-2. Open the site in Chrome on Android.
-3. Use Chrome menu -> Add to Home screen / Install app.
-4. Open Offer Stash once from the home-screen icon.
-5. From Gallery/Chrome/another app, tap Share.
-6. Offer Stash should appear as a share destination.
-7. Share the text/image. Offer Stash opens with it prefilled.
+IMPORTANT
+Smart fill is rule-based/local in V4. It does NOT send offer text or images to an AI service.
+Screenshot OCR is intentionally not claimed yet: a screenshot can be attached, while smart extraction currently works from text supplied by the Share sheet or pasted text.
 
-EXAMPLES
-Gallery -> Share -> Offer Stash -> image appears in Add Offer.
-Chrome -> Share -> Offer Stash -> page title/text/URL appear in Offer Text.
-WhatsApp -> Share -> Offer Stash -> shared text can be prefilled (behavior depends on what WhatsApp exposes to Android's share sheet).
-
-BACKUP
-Tap ⇅ to create an .osb backup.
-Double-tap ⇅ to restore an .osb backup in this prototype.
-Restore merges by permanent ID and updatedAt; it does not wipe the current database.
-
-NEXT POSSIBLE STEP
-We can add smart local extraction:
-- detect bank/app/card
-- detect promo code
-- detect valid-till date
-- suggest category
-- extract conditions
-using on-device processing where practical, while keeping user data local.
+DEPLOY
+1. Upload the V4 files to the root of the GitHub Pages repository, replacing V3 files.
+2. Keep manifest.webmanifest and sw.js.
+3. On Android, uninstall/reinstall the home-screen PWA if Share Target does not update.
+4. Test Gallery/Chrome -> Share -> Offer Stash.

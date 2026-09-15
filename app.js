@@ -1,101 +1,31 @@
-const DB="OfferStashDB", STORE="items";let db,mode="offer",editId=null,imageData=null;
+const DB="OfferStashDB",STORE="items";let db,mode="offer",editId=null,imageData=null;
 const $=id=>document.getElementById(id);
-function uid(){return crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random()}
-
-function getShared(){
-  return new Promise((resolve,reject)=>{
-    const req=indexedDB.open("OfferStashShareInbox",1);
-    req.onupgradeneeded=()=>req.result.createObjectStore("inbox",{keyPath:"id"});
-    req.onsuccess=()=>{
-      const db=req.result;
-      const q=db.transaction("inbox","readonly").objectStore("inbox").getAll();
-      q.onsuccess=()=>resolve(q.result);
-      q.onerror=()=>reject(q.error);
-    };
-    req.onerror=()=>reject(req.error);
-  });
-}
-function deleteShared(id){
-  return new Promise((resolve,reject)=>{
-    const req=indexedDB.open("OfferStashShareInbox",1);
-    req.onsuccess=()=>{
-      const db=req.result;
-      const q=db.transaction("inbox","readwrite").objectStore("inbox").delete(id);
-      q.onsuccess=()=>resolve();
-      q.onerror=()=>reject(q.error);
-    };
-    req.onerror=()=>reject(req.error);
-  });
-}
-async function processShared(){
-  if(!new URLSearchParams(location.search).has("shared")) return;
-  try{
-    const inbox=await getShared();
-    if(!inbox.length) return;
-    const x=inbox.sort((a,b)=>b.createdAt-a.createdAt)[0];
-
-    editId=null; mode="offer";
-    openForm({
-      title:x.title||"Shared offer",
-      source:"",
-      offerText:[x.text,x.url].filter(Boolean).join("\n"),
-      code:"",
-      validTill:"",
-      category:"Other",
-      notes:"",
-      imageData:null
-    });
-
-    if(x.image && x.image.blob){
-      const reader=new FileReader();
-      reader.onload=()=>{
-        imageData=reader.result;
-        $("preview").innerHTML=`<img src="${imageData}">`;
-      };
-      reader.readAsDataURL(x.image.blob);
-    }
-    await deleteShared(x.id);
-    history.replaceState({},document.title,location.pathname);
-    toast("Shared content loaded");
-  }catch(err){
-    console.error(err);
-  }
-}
-
-function openDB(){return new Promise((res,rej)=>{let r=indexedDB.open(DB,1);r.onupgradeneeded=()=>r.result.createObjectStore(STORE,{keyPath:"id"});r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>rej(r.error)})}
-function all(){return new Promise((res,rej)=>{let q=db.transaction(STORE).objectStore(STORE).getAll();q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
-function put(x){return new Promise((res,rej)=>{let q=db.transaction(STORE,"readwrite").objectStore(STORE).put(x);q.onsuccess=res;q.onerror=()=>rej(q.error)})}
-function del(id){return new Promise((res,rej)=>{let q=db.transaction(STORE,"readwrite").objectStore(STORE).delete(id);q.onsuccess=res;q.onerror=()=>rej(q.error)})}
-function toast(t){$("toast").textContent=t;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),1800)}
-function esc(s=""){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
-async function render(){let a=await all();$("stashCount").textContent=a.filter(x=>x.type==="offer").length;$("trackCount").textContent=a.filter(x=>x.type==="track").length;
-let sq=($("searchStash").value||"").toLowerCase(), cq=$("categoryFilter").value;
-$("stashList").innerHTML=a.filter(x=>x.type==="offer"&&(!sq||(x.title+" "+x.source+" "+x.offerText+" "+x.code).toLowerCase().includes(sq))&&(!cq||x.category===cq)).sort((a,b)=>b.updatedAt-a.updatedAt).map(card).join("")||empty("No offers yet");
-let st=($("searchTrack").value||"").toLowerCase(), kq=$("kindFilter").value;
-$("trackList").innerHTML=a.filter(x=>x.type==="track"&&(!st||(x.title+" "+x.notes).toLowerCase().includes(st))&&(!kq||x.kind===kq)).sort((a,b)=>b.updatedAt-a.updatedAt).map(card).join("")||empty("Nothing to track yet")}
-function empty(t){return `<div class="card muted">${t}<br><br>Tap ＋ to add one.</div>`}
-function card(x){let date=x.type==="offer"?x.validTill: x.nextDate;return `<div class="card">${x.imageData?`<img class="thumb" src="${x.imageData}">`:""}<div class="cardtop"><div class="title">${esc(x.title)}</div><button class="danger" onclick="removeItem('${x.id}')">×</button></div>${x.source?`<div class="muted">${esc(x.source)}</div>`:""}${x.offerText?`<div>${esc(x.offerText)}</div>`:""}${x.code?`<div class="code">${esc(x.code)}</div>`:""}${x.category?`<span class="pill">${esc(x.category)}</span>`:""}${x.kind?`<span class="pill">${esc(x.kind)}</span>`:""}${date?`<div class="muted" style="margin-top:9px">📅 ${esc(date)}</div>`:""}${x.notes?`<div class="muted" style="margin-top:7px">${esc(x.notes)}</div>`:""}<button style="margin-top:10px;border:0;background:none" onclick="editItem('${x.id}')">Edit</button></div>`}
-async function removeItem(id){if(confirm("Delete this item?")){await del(id);render()}}
-async function editItem(id){let x=(await all()).find(a=>a.id===id);if(!x)return;editId=id;mode=x.type;openForm(x)}
-function openForm(x={}){$("modalTitle").textContent=mode==="offer"?(editId?"Edit Offer":"Add Offer"):(editId?"Edit Tracker":"Add Tracker");$("sourceLabel").classList.toggle("hidden",mode!=="offer");$("offerLabel").classList.toggle("hidden",mode!=="offer");$("codeLabel").classList.toggle("hidden",mode!=="offer");$("categoryLabel").classList.toggle("hidden",mode!=="offer");$("doneOnLabel").classList.toggle("hidden",mode!=="track");$("nextDateLabel").classList.toggle("hidden",mode!=="track");$("kindLabel").classList.toggle("hidden",mode!=="track");
-$("title").value=x.title||"";$("source").value=x.source||"";$("offerText").value=x.offerText||"";$("code").value=x.code||"";$("validTill").value=x.validTill||"";$("category").value=x.category||"Flight";$("doneOn").value=x.doneOn||"";$("nextDate").value=x.nextDate||"";$("kind").value=x.kind||"Warranty";$("notes").value=x.notes||"";imageData=x.imageData||null;$("preview").innerHTML=imageData?`<img src="${imageData}">`:"";$("modal").classList.remove("hidden")}
+const uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random();
+const esc=s=>(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+function openDB(){return new Promise((res,rej)=>{let r=indexedDB.open(DB,2);r.onupgradeneeded=()=>{let s=r.result.objectStoreNames.contains(STORE)?r.result.transaction.objectStore(STORE):r.result.createObjectStore(STORE,{keyPath:"id"});};r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>rej(r.error)})}
+const all=()=>new Promise((res,rej)=>{let q=db.transaction(STORE).objectStore(STORE).getAll();q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
+const put=x=>new Promise((res,rej)=>{let q=db.transaction(STORE,"readwrite").objectStore(STORE).put(x);q.onsuccess=res;q.onerror=()=>rej(q.error)});
+const del=id=>new Promise((res,rej)=>{let q=db.transaction(STORE,"readwrite").objectStore(STORE).delete(id);q.onsuccess=res;q.onerror=()=>rej(q.error)});
+function toast(t){$("toast").textContent=t;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),1900)}
+function daysUntil(d){if(!d)return null;let a=new Date();a.setHours(0,0,0,0);let b=new Date(d+"T00:00:00");return Math.round((b-a)/86400000)}
+function dateLabel(d){let n=daysUntil(d);if(n===null)return "";let when=n<0?`Expired ${Math.abs(n)}d ago`:n===0?"Today":n===1?"Tomorrow":`in ${n} days`;return `📅 ${new Date(d+"T00:00:00").toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"})} · ${when}`}
+function card(x){let date=x.type==="offer"?x.validTill:x.nextDate;return `<article class="card">${x.imageData?`<img class="thumb" src="${x.imageData}">`:""}<div class="cardtop"><div><div class="title">${esc(x.title)}</div>${x.source?`<div class="source">${esc(x.source)}</div>`:""}</div><button class="round danger" onclick="removeItem('${x.id}')">×</button></div>${x.offerText?`<div class="body">${esc(x.offerText).replace(/\n/g,"<br>")}</div>`:""}${x.code?`<div class="code">${esc(x.code)}</div>`:""}${x.category?`<span class="pill">${esc(x.category)}</span>`:""}${x.kind?`<span class="pill">${esc(x.kind)}</span>`:""}${date?`<div class="date">${dateLabel(date)}</div>`:""}${x.notes?`<div class="source" style="margin-top:8px">${esc(x.notes)}</div>`:""}<div class="actions"><button onclick="editItem('${x.id}')">Edit</button></div></article>`}
+async function render(){let a=await all();$("stashCount").textContent=a.filter(x=>x.type==="offer").length;$("trackCount").textContent=a.filter(x=>x.type==="track").length;let s=($("searchStash").value||"").toLowerCase(),c=$("categoryFilter").value;let t=($("searchTrack").value||"").toLowerCase(),k=$("kindFilter").value;$("stashList").innerHTML=a.filter(x=>x.type==="offer"&&(!s||(x.title+" "+x.source+" "+x.offerText+" "+x.code+" "+x.notes).toLowerCase().includes(s))&&(!c||x.category===c)).sort((a,b)=>b.updatedAt-a.updatedAt).map(card).join("")||'<div class="empty">No offers yet.<br><br>Tap ＋ or share something to get started.</div>';$("trackList").innerHTML=a.filter(x=>x.type==="track"&&(!t||(x.title+" "+x.notes+" "+x.kind).toLowerCase().includes(t))&&(!k||x.kind===k)).sort((a,b)=>(daysUntil(a.nextDate)??99999)-(daysUntil(b.nextDate)??99999)).map(card).join("")||'<div class="empty">Nothing to track yet.<br><br>Tap ＋ to add something.</div>'}
+function openForm(x={}){$("modalTitle").textContent=mode==="offer"?(editId?"Edit Offer":"Add Offer"):(editId?"Edit Tracker":"Add Tracker");["sourceLabel","offerLabel","codeLabel","categoryLabel"].forEach(id=>$(id).classList.toggle("hidden",mode!=="offer"));["doneOnLabel","nextDateLabel","kindLabel"].forEach(id=>$(id).classList.toggle("hidden",mode!=="track"));$("title").value=x.title||"";$("source").value=x.source||"";$("offerText").value=x.offerText||"";$("code").value=x.code||"";$("validTill").value=x.validTill||"";$("category").value=x.category||"Other";$("doneOn").value=x.doneOn||"";$("nextDate").value=x.nextDate||"";$("kind").value=x.kind||"Other";$("notes").value=x.notes||"";imageData=x.imageData||null;$("preview").innerHTML=imageData?`<img src="${imageData}">`:"";$("modal").classList.remove("hidden")}
 $("addOffer").onclick=()=>{editId=null;mode="offer";openForm()};$("addTrack").onclick=()=>{editId=null;mode="track";openForm()};$("closeModal").onclick=()=>{$("modal").classList.add("hidden");imageData=null};
-document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(z=>z.classList.remove("active"));b.classList.add("active");$("stashPanel").classList.toggle("hidden",b.dataset.tab!=="stash");$("trackPanel").classList.toggle("hidden",b.dataset.tab!=="track")});
-$("itemForm").onsubmit=async e=>{e.preventDefault();let old=editId?(await all()).find(x=>x.id===editId):null;let x={...(old||{}),id:editId||uid(),type:mode,title:$("title").value.trim(),source:$("source").value.trim(),offerText:$("offerText").value.trim(),code:$("code").value.trim(),validTill:$("validTill").value,category:$("category").value,doneOn:$("doneOn").value,nextDate:$("nextDate").value,kind:$("kind").value,notes:$("notes").value.trim(),imageData:imageData||null,updatedAt:Date.now()};await put(x);$("modal").classList.add("hidden");imageData=null;toast("Saved");render()};
-async function handleImage(f){if(!f)return;let r=new FileReader();r.onload=()=>{imageData=r.result;$("preview").innerHTML=`<img src="${imageData}">`};r.readAsDataURL(f)}
+document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".nav button").forEach(z=>z.classList.remove("active"));b.classList.add("active");$("stashPanel").classList.toggle("hidden",b.dataset.tab!=="stash");$("trackPanel").classList.toggle("hidden",b.dataset.tab!=="track")});
+async function removeItem(id){if(confirm("Delete this item?")){await del(id);render();toast("Deleted")}}
+async function editItem(id){let x=(await all()).find(a=>a.id===id);if(x){editId=id;mode=x.type;openForm(x)}}
+async function handleImage(f){if(!f)return;let r=new FileReader();r.onload=()=>{imageData=r.result;$("preview").innerHTML=`<img src="${imageData}">`;toast("Image attached")};r.readAsDataURL(f)}
 $("cameraInput").onchange=e=>handleImage(e.target.files[0]);$("imageInput").onchange=e=>handleImage(e.target.files[0]);
-$("pasteBtn").onclick=async()=>{try{let t=await navigator.clipboard.readText();$("offerText").value=t||$("offerText").value;toast(t?"Pasted":"Clipboard is empty")}catch{toast("Paste permission unavailable")}};
+$("pasteBtn").onclick=async()=>{try{let t=await navigator.clipboard.readText();if(t){$("offerText").value=($("offerText").value?$("offerText").value+"\n":"")+t;smartFill(t);toast("Pasted and analysed")}else toast("Clipboard is empty")}catch{toast("Clipboard permission unavailable")}};
+function smartFill(text){let s=text||$("offerText").value||"";let low=s.toLowerCase();let code=(s.match(/\b(?:code|coupon|promo(?:\s*code)?)\s*[:\-]?\s*([A-Z0-9]{4,20})\b/i)||[])[1]||((s.match(/\b[A-Z0-9]{5,15}\b/g)||[]).find(v=>/[A-Z]/.test(v)&&/\d/.test(v))||"");let date=(s.match(/\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/)||[])[1]||"";if(date){let p=date.split(/[\/\-]/).map(Number);let y=p[2]<100?2000+p[2]:p[2];date=`${y}-${String(p[1]).padStart(2,"0")}-${String(p[0]).padStart(2,"0")}`}let cat=low.match(/flight|airline|airport|travel/)?"Flight":low.match(/hotel|stay|marriott|hilton|resort/)?"Stay":low.match(/food|restaurant|dining|swiggy|zomato/)?"Food":low.match(/grocery|groceries|blinkit|zepto|instamart/)?"Grocery":low.match(/shopping|amazon|flipkart|myntra/)?"Shopping":low.match(/uber|ola|ride|cab/)?"Rides":low.match(/fuel|petrol|diesel/)?"Fuel":low.match(/movie|cinema|bookmyshow/)?"Movies":low.match(/bill|electricity|recharge/)?"Bills":"Other";let source=(s.match(/\b(HDFC|ICICI|Axis|SBI|Amazon|Flipkart|Marriott|Hilton|MakeMyTrip|Uber|Ola|Swiggy|Zomato|Myntra|BookMyShow)\b/i)||[])[1]||"";let discount=(s.match(/\b\d{1,3}%\s*(?:off|discount)\b/i)||[])[0]||((s.match(/\b(?:₹|Rs\.?|INR)\s?[\d,]+\s*(?:off|discount)\b/i)||[])[0]||"");if(code)$("code").value=code;if(date)$("validTill").value=date;if(cat)$("category").value=cat;if(source)$("source").value=source;if(!$("title").value)$("title").value=discount||source||"Shared offer";if(!$("notes").value){let cond=s.match(/(?:minimum|min\.?|valid on|terms|conditions|only on|up to).{0,140}/i);if(cond)$("notes").value=cond[0].trim()}return {code,date,cat,source,discount}}
+$("smartBtn").onclick=()=>{let r=smartFill($("offerText").value);toast((r.code||r.date||r.source||r.discount)?"Smart fields filled":"Add/paste offer text first")};
+$("itemForm").onsubmit=async e=>{e.preventDefault();let old=editId?(await all()).find(x=>x.id===editId):null;let x={...(old||{}),id:editId||uid(),type:mode,title:$("title").value.trim(),source:$("source").value.trim(),offerText:$("offerText").value.trim(),code:$("code").value.trim(),validTill:$("validTill").value,category:$("category").value,doneOn:$("doneOn").value,nextDate:$("nextDate").value,kind:$("kind").value,notes:$("notes").value.trim(),imageData:imageData||null,updatedAt:Date.now()};await put(x);$("modal").classList.add("hidden");imageData=null;await render();toast("Saved")};
+async function getShared(){return new Promise((resolve,reject)=>{let r=indexedDB.open("OfferStashShareInbox",1);r.onupgradeneeded=()=>r.result.createObjectStore("inbox",{keyPath:"id"});r.onsuccess=()=>{let q=r.result.transaction("inbox","readonly").objectStore("inbox").getAll();q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)};r.onerror=()=>reject(r.error)})}
+async function deleteShared(id){return new Promise((resolve,reject)=>{let r=indexedDB.open("OfferStashShareInbox",1);r.onsuccess=()=>{let q=r.result.transaction("inbox","readwrite").objectStore("inbox").delete(id);q.onsuccess=resolve;q.onerror=()=>reject(q.error)}})}
+async function processShared(){if(!new URLSearchParams(location.search).has("shared"))return;let inbox=await getShared();if(!inbox.length)return;let x=inbox.sort((a,b)=>b.createdAt-a.createdAt)[0];mode="offer";editId=null;openForm({title:x.title||"",offerText:[x.text,x.url].filter(Boolean).join("\n"),category:"Other"});if(x.image?.blob){let r=new FileReader();r.onload=()=>{imageData=r.result;$("preview").innerHTML=`<img src="${imageData}">`;toast("Shared image attached")};r.readAsDataURL(x.image.blob)}smartFill([x.title,x.text,x.url].filter(Boolean).join("\n"));await deleteShared(x.id);history.replaceState({},document.title,location.pathname)}
+$("backupBtn").onclick=async()=>{let items=await all();let p={format:"OfferStash",version:4,exportedAt:new Date().toISOString(),items};let b=new Blob([JSON.stringify(p)],{type:"application/json"});let u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=`OfferStash-${new Date().toISOString().slice(0,10)}.osb`;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);toast("Backup created")};
+document.body.insertAdjacentHTML("beforeend",`<input id="restoreInput" type="file" accept=".osb,.json,application/json" style="display:none">`);$("backupBtn").addEventListener("dblclick",()=>$("restoreInput").click());$("restoreInput").onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let p=JSON.parse(await f.text());if(!Array.isArray(p.items))throw Error();let current=await all(),m=new Map(current.map(x=>[x.id,x]));for(let x of p.items){let old=m.get(x.id);if(!old||Number(x.updatedAt||0)>Number(old.updatedAt||0))await put(x)}toast("Backup merged");render()}catch{toast("Invalid backup file")}e.target.value=""};
 ["searchStash","searchTrack","categoryFilter","kindFilter"].forEach(id=>$(id).oninput=render);
-
-$("backupBtn").onclick=async()=>{let a=await all();let payload={format:"OfferStash",version:2,exportedAt:new Date().toISOString(),items:a};let blob=new Blob([JSON.stringify(payload)],{type:"application/json"});let url=URL.createObjectURL(blob),ael=document.createElement("a");ael.href=url;ael.download="OfferStash-"+new Date().toISOString().slice(0,10)+".osb";ael.click();URL.revokeObjectURL(url);toast("Backup created")};
-document.body.insertAdjacentHTML("beforeend",`<input id="restoreInput" type="file" accept=".osb,.json,application/json" style="display:none">`);
-$("backupBtn").addEventListener("dblclick",()=>$("restoreInput").click());
-$("restoreInput").onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let p=JSON.parse(await f.text());if(!p.items)throw Error();let existing=await all(),m=new Map(existing.map(x=>[x.id,x]));for(let x of p.items){let old=m.get(x.id);if(!old||Number(x.updatedAt||0)>Number(old.updatedAt||0))await put(x)}toast("Restore merged");render()}catch{toast("Invalid backup file")}e.target.value=""};
-
-openDB().then(async()=>{
-  if("serviceWorker"in navigator){
-    try{ await navigator.serviceWorker.register("./sw.js"); }catch(e){console.error(e)}
-  }
-  await render();
-  setTimeout(processShared,250);
-});
+openDB().then(async()=>{if("serviceWorker"in navigator)try{await navigator.serviceWorker.register("./sw.js")}catch(e){console.error(e)}await render();setTimeout(processShared,300)});
