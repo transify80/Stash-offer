@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<title>Offer Stash</title>
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <div class="brand">Offer Stash <span>•</span></div>
+    <div class="subtitle">Your offers & things to track</div>
+  </div>
+  <button id="backupBtn" class="iconbtn" title="Backup / Restore">⇅</button>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="tab active" data-tab="stash">STASH <span id="stashCount">0</span></button>
+    <button class="tab" data-tab="track">TRACK <span id="trackCount">0</span></button>
+  </div>
+
+  <section id="stashPanel" class="panel">
+    <div class="toolbar">
+      <input id="searchStash" placeholder="Search offers..." autocomplete="off">
+      <select id="categoryFilter">
+        <option value="">All categories</option>
+        <option>Flight</option><option>Stay</option><option>Food</option>
+        <option>Grocery</option><option>Shopping</option><option>Rides</option>
+        <option>Fuel</option><option>Movies</option><option>Bills</option><option>Other</option>
+      </select>
+    </div>
+    <div id="stashList" class="list"></div>
+    <button class="fab" id="addOffer">＋</button>
+  </section>
+
+  <section id="trackPanel" class="panel hidden">
+    <div class="toolbar">
+      <input id="searchTrack" placeholder="Search tracker..." autocomplete="off">
+      <select id="kindFilter">
+        <option value="">All kinds</option>
+        <option>Vehicle</option><option>Appliance</option><option>Warranty</option>
+        <option>Subscription</option><option>Health</option><option>Home</option>
+        <option>Electronics</option><option>Other</option>
+      </select>
+    </div>
+    <div id="trackList" class="list"></div>
+    <button class="fab" id="addTrack">＋</button>
+  </section>
+</main>
+
+<div id="modal" class="modal hidden">
+  <div class="sheet">
+    <div class="sheethead">
+      <h2 id="modalTitle">Add Offer</h2><button id="closeModal" class="iconbtn">✕</button>
+    </div>
+    <div class="capture">
+      <label class="captureBtn">📷 Take photo
+        <input id="cameraInput" type="file" accept="image/*" capture="environment">
+      </label>
+      <label class="captureBtn">🖼 Choose image
+        <input id="imageInput" type="file" accept="image/*">
+      </label>
+      <button id="pasteBtn" class="captureBtn">📋 Paste text</button>
+    </div>
+    <div id="preview" class="preview"></div>
+
+    <form id="itemForm">
+      <label>What is this?<input id="title" required></label>
+      <label id="sourceLabel">App / Site / Card<input id="source" placeholder="e.g. HDFC, Amazon, MakeMyTrip"></label>
+      <label id="offerLabel">Offer text<textarea id="offerText" rows="3" placeholder="Describe the offer"></textarea></label>
+      <label id="codeLabel">Promo code<input id="code" placeholder="Optional"></label>
+      <label>Valid till<input id="validTill" type="date"></label>
+      <label id="categoryLabel">Use it for
+        <select id="category">
+          <option>Flight</option><option>Stay</option><option>Food</option><option>Grocery</option>
+          <option>Shopping</option><option>Rides</option><option>Fuel</option><option>Movies</option>
+          <option>Bills</option><option>Other</option>
+        </select>
+      </label>
+      <label id="doneOnLabel" class="hidden">Done on<input id="doneOn" type="date"></label>
+      <label id="nextDateLabel" class="hidden">Next date (optional)<input id="nextDate" type="date"></label>
+      <label id="kindLabel" class="hidden">Kind
+        <select id="kind">
+          <option>Vehicle</option><option>Appliance</option><option>Warranty</option>
+          <option>Subscription</option><option>Health</option><option>Home</option>
+          <option>Electronics</option><option>Other</option>
+        </select>
+      </label>
+      <label>Notes / conditions<textarea id="notes" rows="3"></textarea></label>
+      <button class="primary" type="submit">Save</button>
+    </form>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
